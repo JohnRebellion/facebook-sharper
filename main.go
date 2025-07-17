@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"image"
 	"log"
 	"net/http"
@@ -63,11 +64,17 @@ func processHandler(w http.ResponseWriter, r *http.Request) {
 	dstImg = imaging.Sharpen(dstImg, 1.5)
 	log.Printf("Adjustments: %v", time.Since(start))
 
-	w.Header().Set("Content-Type", "image/png")
-	err = imaging.Encode(w, dstImg, imaging.PNG)
+	var buf bytes.Buffer
+	err = imaging.Encode(&buf, dstImg, imaging.PNG)
 	if err != nil {
 		http.Error(w, "Failed to encode image: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		log.Printf("Failed to write response: %v", err)
 	}
 	log.Printf("Encode: %v", time.Since(start))
 }
